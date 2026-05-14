@@ -1,0 +1,2077 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Banana Tool - AI信息图提示词工坊</title>
+<style>
+/* ===== CSS Reset & Variables ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #fc8166;
+  --primary-dark: #e56a50;
+  --dark: #312e2e;
+  --dark2: #4a4545;
+  --light: #efefef;
+  --white: #ffffff;
+  --gray: #9e9e9e;
+  --gray-light: #d4d4d4;
+  --green: #4caf50;
+  --blue: #2196f3;
+  --purple: #9c27b0;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: all 0.3s ease;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  background: var(--light);
+  color: var(--dark);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ===== Header ===== */
+.app-header {
+  background: var(--dark);
+  color: var(--white);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.app-header .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+.app-header .logo .banana-icon {
+  font-size: 24px;
+}
+.app-header .logo span.accent {
+  color: var(--primary);
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-actions .version-tag {
+  font-size: 11px;
+  background: var(--primary);
+  color: var(--white);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: var(--white);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: var(--transition);
+}
+.btn-icon:hover { background: rgba(255,255,255,0.2); }
+
+/* ===== Main Layout ===== */
+.app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* ===== Workflow Pipeline ===== */
+.pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 24px;
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.pipeline-step {
+  flex: 1;
+  padding: 16px 12px;
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+  transition: var(--transition);
+  border-bottom: 3px solid transparent;
+}
+.pipeline-step:hover {
+  background: rgba(252,129,102,0.05);
+}
+.pipeline-step.active {
+  background: rgba(252,129,102,0.08);
+  border-bottom-color: var(--primary);
+}
+.pipeline-step .step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--gray-light);
+  color: var(--dark);
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+  transition: var(--transition);
+}
+.pipeline-step.active .step-num {
+  background: var(--primary);
+  color: var(--white);
+}
+.pipeline-step.done .step-num {
+  background: var(--green);
+  color: var(--white);
+}
+.pipeline-step .step-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark);
+}
+.pipeline-step .step-subtitle {
+  font-size: 11px;
+  color: var(--gray);
+  margin-top: 2px;
+}
+.pipeline-step .step-arrow {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  color: var(--gray-light);
+  font-size: 14px;
+}
+.pipeline-step:last-child .step-arrow { display: none; }
+
+/* ===== Workspace ===== */
+.workspace {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.workspace-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.workspace-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.workspace-header h2 .emoji { font-size: 22px; }
+.workspace-body {
+  padding: 24px;
+  min-height: 400px;
+}
+
+/* ===== Form Elements ===== */
+.form-group {
+  margin-bottom: 20px;
+}
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark2);
+  margin-bottom: 6px;
+}
+.form-group label .hint {
+  font-weight: 400;
+  color: var(--gray);
+  font-size: 12px;
+}
+.form-control {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--gray-light);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--dark);
+  background: var(--white);
+  transition: var(--transition);
+  outline: none;
+}
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(252,129,102,0.15);
+}
+textarea.form-control {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.6;
+}
+select.form-control {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%239e9e9e'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--white);
+}
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-dark {
+  background: var(--dark);
+  color: var(--white);
+}
+.btn-dark:hover { background: var(--dark2); }
+.btn-outline {
+  background: transparent;
+  color: var(--dark);
+  border: 1.5px solid var(--gray-light);
+}
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+.btn-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ===== Step 1: Extract ===== */
+.step1-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.step1-left, .step1-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.article-input-area {
+  position: relative;
+}
+.article-input-area textarea {
+  min-height: 200px;
+}
+.char-count {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 11px;
+  color: var(--gray);
+}
+.prompt-preview {
+  background: #fafafa;
+  border: 1.5px solid var(--light);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.prompt-preview .tag {
+  display: inline-block;
+  background: rgba(252,129,102,0.15);
+  color: var(--primary-dark);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ===== Step 2: VI Template ===== */
+.vi-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+}
+.vi-sidebar {
+  background: var(--light);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+}
+.vi-sidebar .color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.vi-sidebar .color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 2px solid var(--gray-light);
+  flex-shrink: 0;
+}
+.vi-sidebar .color-info {
+  font-size: 12px;
+}
+.vi-sidebar .color-info .color-name {
+  font-weight: 600;
+  color: var(--dark);
+}
+.vi-sidebar .color-info .color-hex {
+  color: var(--gray);
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.infographic-preview {
+  background: var(--light);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1.5px solid var(--gray-light);
+}
+.preview-header-bar {
+  background: var(--dark);
+  color: var(--white);
+  padding: 16px 20px;
+}
+.preview-header-bar .preview-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.preview-header-bar .preview-title .hl {
+  color: var(--primary);
+}
+.preview-header-bar .preview-subtitle {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+.preview-content {
+  padding: 20px;
+  min-height: 200px;
+  background: var(--light);
+}
+.preview-section {
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 12px;
+  border-left: 3px solid var(--primary);
+}
+.preview-section .section-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.preview-section .section-keywords {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.preview-section .keyword-tag {
+  background: rgba(252,129,102,0.12);
+  color: var(--primary-dark);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.preview-section .section-points {
+  font-size: 12px;
+  color: var(--dark2);
+  line-height: 1.8;
+}
+.preview-footer-bar {
+  background: var(--dark);
+  color: var(--white);
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 12px;
+}
+
+/* ===== Step 3: Assemble ===== */
+.step3-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.assembled-prompt {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  max-height: 500px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  position: relative;
+}
+.assembled-prompt .prompt-section-label {
+  color: var(--primary);
+  font-weight: 600;
+}
+.assembled-prompt .prompt-highlight {
+  color: #4ec9b0;
+}
+.copy-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+/* ===== Step 4: Post-process ===== */
+.step4-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.upload-zone {
+  border: 2px dashed var(--gray-light);
+  border-radius: var(--radius);
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--light);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.upload-zone:hover {
+  border-color: var(--primary);
+  background: rgba(252,129,102,0.03);
+}
+.upload-zone .upload-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+.upload-zone p {
+  color: var(--gray);
+  font-size: 14px;
+}
+.upload-zone .upload-hint {
+  font-size: 12px;
+  color: var(--gray);
+  margin-top: 8px;
+}
+.watermark-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.watermark-option {
+  background: var(--light);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+.watermark-option .option-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.canvas-container {
+  position: relative;
+  display: inline-block;
+}
+.canvas-container canvas {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gray-light);
+}
+
+/* ===== Floating Help ===== */
+.help-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--white);
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+.help-fab:hover { transform: scale(1.1); }
+
+.help-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.help-modal-overlay.show { display: flex; }
+.help-modal {
+  background: var(--white);
+  border-radius: var(--radius);
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.help-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.help-modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.help-modal-body {
+  padding: 24px;
+}
+.help-modal-body h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 16px 0 8px;
+  color: var(--primary);
+}
+.help-modal-body h4:first-child { margin-top: 0; }
+.help-modal-body p, .help-modal-body li {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--dark2);
+}
+.help-modal-body ul {
+  padding-left: 20px;
+}
+.help-modal-body li {
+  margin-bottom: 4px;
+}
+.changelog-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--light);
+}
+.changelog-item:last-child { border-bottom: none; }
+.changelog-item .version {
+  display: inline-block;
+  background: var(--primary);
+  color: var(--white);
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 8px;
+}
+.changelog-item .date {
+  color: var(--gray);
+  font-size: 12px;
+}
+
+/* ===== Toast ===== */
+.toast-container {
+  position: fixed;
+  top: 70px;
+  right: 24px;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--dark);
+  color: var(--white);
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  box-shadow: var(--shadow-lg);
+  animation: toastIn 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast.success { border-left: 4px solid var(--green); }
+.toast.info { border-left: 4px solid var(--blue); }
+.toast.warning { border-left: 4px solid #ff9800; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ===== Config Panel ===== */
+.config-panel {
+  background: var(--light);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1.5px solid var(--gray-light);
+}
+.config-panel h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+  .step1-layout, .step4-layout { grid-template-columns: 1fr; }
+  .vi-layout { grid-template-columns: 1fr; }
+  .pipeline { flex-wrap: wrap; }
+  .pipeline-step { min-width: 25%; }
+  .pipeline-step .step-arrow { display: none; }
+}
+@media (max-width: 600px) {
+  .app-main { padding: 12px; }
+  .workspace-body { padding: 16px; }
+  .pipeline-step { padding: 10px 8px; }
+  .pipeline-step .step-title { font-size: 11px; }
+  .pipeline-step .step-subtitle { display: none; }
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gray-light); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gray); }
+
+/* ===== Sections Editor ===== */
+.sections-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.section-card {
+  background: var(--light);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  border: 1px solid var(--gray-light);
+  position: relative;
+}
+.section-card .section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.section-card .section-num {
+  background: var(--primary);
+  color: var(--white);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.section-card .section-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--gray);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+}
+.section-card .section-remove:hover { color: #e53935; }
+
+/* ===== Input color ===== */
+input[type="color"] {
+  width: 40px;
+  height: 32px;
+  border: 1.5px solid var(--gray-light);
+  border-radius: 6px;
+  padding: 2px;
+  cursor: pointer;
+  background: var(--white);
+}
+
+/* ===== Tabs ===== */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--light);
+  margin-bottom: 20px;
+}
+.tab-btn {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: var(--transition);
+  font-family: inherit;
+}
+.tab-btn:hover { color: var(--dark); }
+.tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ===== Image preview in step 4 ===== */
+.image-preview-area {
+  text-align: center;
+}
+.image-preview-area img {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gray-light);
+}
+.download-result {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ===== Logo upload ===== */
+.logo-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.logo-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  border: 1px solid var(--gray-light);
+  background: var(--light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 10px;
+  color: var(--gray);
+}
+.logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ===== Range slider ===== */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--gray-light);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+}
+
+/* ===== Footer status ===== */
+.app-footer {
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--gray);
+}
+
+/* ===== Saved projects ===== */
+.project-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.project-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: var(--white);
+  border: 1.5px solid var(--gray-light);
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.project-chip:hover, .project-chip.active {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.project-chip .chip-close {
+  margin-left: 4px;
+  opacity: 0.5;
+  cursor: pointer;
+}
+.project-chip .chip-close:hover { opacity: 1; }
+
+/* ===== Step status indicator ===== */
+.step-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--gray);
+}
+.step-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray-light);
+}
+.step-status .status-dot.done { background: var(--green); }
+.step-status .status-dot.active { background: var(--primary); }
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="app-header">
+  <div class="logo">
+    <span class="banana-icon">🍌</span>
+    <span>Banana <span class="accent">Tool</span></span>
+  </div>
+  <div class="header-actions">
+    <span class="version-tag" id="versionTag">v0.1</span>
+    <button class="btn-icon" title="导出/导入配置" onclick="showConfigModal()">⚙️</button>
+    <button class="btn-icon" title="帮助" onclick="toggleHelp()">❓</button>
+  </div>
+</header>
+
+<!-- ===== Main Content ===== -->
+<main class="app-main">
+
+  <!-- Project Bar -->
+  <div class="project-bar">
+    <span style="font-size:12px;color:var(--gray);font-weight:600;">项目：</span>
+    <div id="projectList"></div>
+    <button class="btn btn-sm btn-outline" onclick="newProject()">+ 新项目</button>
+  </div>
+
+  <!-- Pipeline Steps -->
+  <div class="pipeline">
+    <div class="pipeline-step active" data-step="1" onclick="goStep(1)">
+      <div class="step-num">1</div>
+      <div class="step-title">解读提取</div>
+      <div class="step-subtitle">AI分析文章</div>
+      <span class="step-arrow">▶</span>
+    </div>
+    <div class="pipeline-step" data-step="2" onclick="goStep(2)">
+      <div class="step-num">2</div>
+      <div class="step-title">VI套用</div>
+      <div class="step-subtitle">公司视觉规范</div>
+      <span class="step-arrow">▶</span>
+    </div>
+    <div class="pipeline-step" data-step="3" onclick="goStep(3)">
+      <div class="step-num">3</div>
+      <div class="step-title">组装出图</div>
+      <div class="step-subtitle">生成完整Prompt</div>
+      <span class="step-arrow">▶</span>
+    </div>
+    <div class="pipeline-step" data-step="4" onclick="goStep(4)">
+      <div class="step-num">4</div>
+      <div class="step-title">后处理</div>
+      <div class="step-subtitle">水印/Logo/修图</div>
+    </div>
+  </div>
+
+  <!-- Step 1: Extract -->
+  <div class="workspace" id="step1Workspace">
+    <div class="workspace-header">
+      <h2><span class="emoji">📝</span> 步骤1：解读文章并提取信息图内容</h2>
+      <div class="step-status">
+        <span class="status-dot active" id="step1Dot"></span>
+        <span id="step1Status">进行中</span>
+      </div>
+    </div>
+    <div class="workspace-body">
+      <div class="step1-layout">
+        <div class="step1-left">
+          <div class="form-group">
+            <label>文章全文 <span class="hint">（粘贴需要制作为信息图的文章）</span></label>
+            <div class="article-input-area">
+              <textarea class="form-control" id="articleInput" placeholder="将文章全文粘贴到这里...&#10;&#10;工具会帮您组装一段提示词，让AI提取关键信息并设计信息图方案。"></textarea>
+              <span class="char-count" id="articleCharCount">0 字</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>关键主题 <span class="hint">（信息图的核心主题，如"荧幕小三形象发展历程"）</span></label>
+            <input type="text" class="form-control" id="keyTopic" placeholder="输入信息图的关键主题...">
+          </div>
+          <div class="form-group">
+            <label>使用模型</label>
+            <select class="form-control" id="extractModel">
+              <option value="claude">Claude Opus</option>
+              <option value="gemini">Gemini 3 Pro</option>
+              <option value="gpt">GPT-4o</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="generateExtractPrompt()">生成提取提示词</button>
+            <button class="btn btn-outline" onclick="copyExtractPrompt()">📋 复制提示词</button>
+          </div>
+        </div>
+        <div class="step1-right">
+          <div class="form-group">
+            <label>提示词预览 <span class="hint">（复制后粘贴到AI对话框使用）</span></label>
+            <div class="prompt-preview" id="extractPromptPreview">
+              <span style="color:var(--gray);">← 在左侧输入文章和主题后点击"生成提取提示词"</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>AI返回的提取结果 <span class="hint">（将AI的输出粘贴到此处，用于下一步）</span></label>
+            <textarea class="form-control" id="extractResult" placeholder="将AI返回的提取结果（时间线数据 + 创意方案）粘贴到这里...&#10;&#10;此内容将用于步骤2中套用公司VI模板。" style="min-height:160px;"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: VI Template -->
+  <div class="workspace" id="step2Workspace" style="display:none;">
+    <div class="workspace-header">
+      <h2><span class="emoji">🎨</span> 步骤2：贴合公司VI生成信息图</h2>
+      <div class="step-status">
+        <span class="status-dot" id="step2Dot"></span>
+        <span id="step2Status">未开始</span>
+      </div>
+    </div>
+    <div class="workspace-body">
+      <div class="vi-layout">
+        <div class="vi-sidebar">
+          <h3 style="font-size:14px;margin-bottom:16px;">🎨 VI视觉规范</h3>
+          <div class="color-row">
+            <div class="color-swatch" style="background:#fc8166;"></div>
+            <div class="color-info">
+              <div class="color-name">标识色（橘红）</div>
+              <div class="color-hex">#fc8166</div>
+            </div>
+          </div>
+          <div class="color-row">
+            <div class="color-swatch" style="background:#312e2e;"></div>
+            <div class="color-info">
+              <div class="color-name">深色（黑）</div>
+              <div class="color-hex">#312e2e</div>
+            </div>
+          </div>
+          <div class="color-row">
+            <div class="color-swatch" style="background:#efefef;"></div>
+            <div class="color-info">
+              <div class="color-name">背景色（浅白）</div>
+              <div class="color-hex">#efefef</div>
+            </div>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--gray-light);margin:16px 0;">
+          <div class="form-group">
+            <label>标识色</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="color" id="viAccentColor" value="#fc8166" onchange="updateVI()">
+              <span style="font-size:12px;color:var(--gray);" id="viAccentHex">#fc8166</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>深色</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="color" id="viDarkColor" value="#312e2e" onchange="updateVI()">
+              <span style="font-size:12px;color:var(--gray);" id="viDarkHex">#312e2e</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>背景色</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="color" id="viBgColor" value="#efefef" onchange="updateVI()">
+              <span style="font-size:12px;color:var(--gray);" id="viBgHex">#efefef</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>字体</label>
+            <select class="form-control" id="viFont" onchange="updateVI()">
+              <option value="阿里巴巴普惠体">阿里巴巴普惠体</option>
+              <option value="思源黑体">思源黑体</option>
+              <option value="微软雅黑">微软雅黑</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>作者/署名</label>
+            <input type="text" class="form-control" id="viAuthor" value="娱乐资本论" oninput="updateVI()">
+          </div>
+          <div class="form-group">
+            <label>插画风格</label>
+            <select class="form-control" id="viIllustStyle" onchange="updateVI()">
+              <option value="扁平化贴纸stickers">扁平化贴纸 stickers</option>
+              <option value="纯色扁平化图标插画">纯色扁平化图标插画</option>
+              <option value="线性插画">线性插画</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('edit')">编辑内容</button>
+            <button class="tab-btn" onclick="switchTab('preview')">预览效果</button>
+          </div>
+          <div class="tab-content active" id="tabEdit">
+            <div class="form-group">
+              <label>主标题 <span class="hint">（强调字用【】包裹）</span></label>
+              <input type="text" class="form-control" id="viTitle" placeholder='如：2025 长剧市场：【6大变化】重写运行逻辑' oninput="updateVI()">
+            </div>
+            <div class="form-group">
+              <label>副标题</label>
+              <input type="text" class="form-control" id="viSubtitle" placeholder="如：没有爆款，但长剧正在换一种方式继续运转" oninput="updateVI()">
+            </div>
+            <div class="form-group">
+              <label>内容主体 <span class="hint">（步骤1中AI返回的提取结果，已自动填入）</span></label>
+              <textarea class="form-control" id="viContent" style="min-height:200px;" placeholder="将步骤1中AI返回的时间线数据和创意方案粘贴到这里..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>排版布局</label>
+              <select class="form-control" id="viLayout">
+                <option value="grid2">网格2列（每行2部分）</option>
+                <option value="vertical">垂直流式（每行1部分）</option>
+                <option value="grid3">网格3列（每行3部分）</option>
+                <option value="timeline">时间线式</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>结论文字 <span class="hint">（可选，放在信息图底部）</span></label>
+              <textarea class="form-control" id="viConclusion" style="min-height:60px;" placeholder="如：2025年的长剧，没有制造爆款神话..."></textarea>
+            </div>
+          </div>
+          <div class="tab-content" id="tabPreview">
+            <div class="infographic-preview" id="infographicPreview">
+              <div class="preview-header-bar">
+                <div class="preview-title" id="previewTitle">标题区域</div>
+                <div class="preview-subtitle" id="previewSubtitle">副标题区域</div>
+              </div>
+              <div class="preview-content" id="previewContent">
+                <div style="text-align:center;color:var(--gray);padding:40px;">请在"编辑内容"中填写信息</div>
+              </div>
+              <div class="preview-footer-bar" id="previewFooter">作者：娱乐资本论</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Assemble -->
+  <div class="workspace" id="step3Workspace" style="display:none;">
+    <div class="workspace-header">
+      <h2><span class="emoji">🔧</span> 步骤3：组装出图提示词</h2>
+      <div class="step-status">
+        <span class="status-dot" id="step3Dot"></span>
+        <span id="step3Status">未开始</span>
+      </div>
+    </div>
+    <div class="workspace-body">
+      <div class="step3-layout">
+        <div class="btn-group" style="margin-bottom:12px;">
+          <button class="btn btn-primary" onclick="assemblePrompt()">🔧 组装提示词</button>
+          <button class="btn btn-dark" onclick="copyAssembledPrompt()">📋 一键复制</button>
+          <button class="btn btn-outline" onclick="downloadPrompt()">💾 下载为文本</button>
+        </div>
+        <div class="form-group">
+          <label>完整提示词 <span class="hint">（复制后粘贴到Nano Banana Pro出图）</span></label>
+          <div class="assembled-prompt" id="assembledPrompt">
+            <span style="color:var(--gray);">点击"组装提示词"生成完整提示词...</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>出图注意事项</label>
+          <div style="background:var(--light);border-radius:var(--radius-sm);padding:16px;font-size:13px;line-height:1.8;">
+            <p>1. Nano Banana Pro 的"图像生成"模式<b>不可叠加附件</b>，请用纯文本提示词出图。</p>
+            <p>2. 提示词中的数据和文字会100%输出，请仔细核对事实。</p>
+            <p>3. 如有系列图片，需要让AI指定与第一张图同样的风格。</p>
+            <p>4. 提示词有长度上限，插画描述如过于复杂可分拆。</p>
+            <p>5. 中文标注部分建议后期叠加（多数模型中文渲染不稳定）。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Post-process -->
+  <div class="workspace" id="step4Workspace" style="display:none;">
+    <div class="workspace-header">
+      <h2><span class="emoji">🖼️</span> 步骤4：后处理（水印/Logo/修图）</h2>
+      <div class="step-status">
+        <span class="status-dot" id="step4Dot"></span>
+        <span id="step4Status">未开始</span>
+      </div>
+    </div>
+    <div class="workspace-body">
+      <div class="step4-layout">
+        <div>
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('imageUpload').click()">
+            <div class="upload-icon">📁</div>
+            <p>点击或拖拽上传生成的信息图</p>
+            <p class="upload-hint">支持 PNG / JPG / WebP</p>
+          </div>
+          <input type="file" id="imageUpload" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
+          <div class="image-preview-area" id="imagePreviewArea" style="display:none;margin-top:16px;">
+            <img id="uploadedImage" alt="预览">
+          </div>
+        </div>
+        <div class="watermark-options">
+          <div class="watermark-option">
+            <div class="option-title">🏷️ Logo水印</div>
+            <div class="logo-upload-row">
+              <div class="logo-preview" id="logoPreview1">无</div>
+              <button class="btn btn-sm btn-outline" onclick="document.getElementById('logoUpload').click()">上传横版Logo（页脚）</button>
+              <input type="file" id="logoUpload" accept="image/*" style="display:none;" onchange="handleLogoUpload(event,'footer')">
+            </div>
+            <div class="logo-upload-row">
+              <div class="logo-preview" id="logoPreview2">无</div>
+              <button class="btn btn-sm btn-outline" onclick="document.getElementById('logoUpload2').click()">上传竖版Logo（水印）</button>
+              <input type="file" id="logoUpload2" accept="image/*" style="display:none;" onchange="handleLogoUpload(event,'watermark')">
+            </div>
+          </div>
+          <div class="watermark-option">
+            <div class="option-title">💧 水印设置</div>
+            <div class="form-group">
+              <label>透明度：<span id="opacityValue">15</span>%</label>
+              <input type="range" id="watermarkOpacity" min="5" max="50" value="15" oninput="document.getElementById('opacityValue').textContent=this.value">
+            </div>
+            <div class="form-group">
+              <label>水印模式</label>
+              <select class="form-control" id="watermarkMode">
+                <option value="center">中心一个大水印</option>
+                <option value="tile">满屏平铺水印</option>
+                <option value="corners">四角水印</option>
+              </select>
+            </div>
+          </div>
+          <div class="watermark-option">
+            <div class="option-title">✂️ 去除右下角星星水印</div>
+            <p style="font-size:12px;color:var(--gray);margin-bottom:8px;">Nano Banana出图右下角有四芒星水印，建议用Windows自带"图片"查看器的AI消除功能处理</p>
+            <p style="font-size:12px;color:var(--dark2);">操作方法：将原图右下角截取一小段 → AI消除 → 升幅画质 → 画图拼合</p>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="applyWatermark()">应用水印</button>
+            <button class="btn btn-dark" onclick="downloadResult()">💾 下载成品</button>
+          </div>
+        </div>
+      </div>
+      <!-- Canvas for watermark processing (hidden) -->
+      <canvas id="watermarkCanvas" style="display:none;"></canvas>
+      <div id="resultArea" style="display:none;margin-top:20px;text-align:center;">
+        <h3 style="font-size:14px;margin-bottom:12px;">处理结果</h3>
+        <div class="image-preview-area">
+          <img id="resultImage" alt="结果" style="max-width:100%;max-height:600px;border-radius:var(--radius-sm);border:1px solid var(--gray-light);">
+        </div>
+        <div class="download-result">
+          <button class="btn btn-primary" onclick="downloadResult()">💾 下载PNG</button>
+          <button class="btn btn-outline" onclick="downloadResult('jpeg')">💾 下载JPG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Footer -->
+<footer class="app-footer">
+  Banana Tool — AI信息图提示词工坊 | 数据存储于浏览器本地
+</footer>
+
+<!-- Help FAB -->
+<button class="help-fab" onclick="toggleHelp()">?</button>
+
+<!-- Help Modal -->
+<div class="help-modal-overlay" id="helpModal">
+  <div class="help-modal">
+    <div class="help-modal-header">
+      <h3>🍌 Banana Tool 帮助</h3>
+      <button class="btn-icon" onclick="toggleHelp()" style="background:var(--light);color:var(--dark);">✕</button>
+    </div>
+    <div class="help-modal-body">
+      <h4>工具用途</h4>
+      <p>Banana Tool 是一个AI信息图提示词组装工具，将手动操作的提示词工作流转化为可视化流程。它帮助您：</p>
+      <ul>
+        <li>从文章中提取关键信息，组装AI提示词</li>
+        <li>套用公司VI视觉规范，生成统一风格的信息图提示词</li>
+        <li>一键组装完整的出图提示词，复制后粘贴到Nano Banana Pro等AI出图工具</li>
+        <li>对生成的图片添加Logo水印等后处理</li>
+      </ul>
+      <h4>使用方法</h4>
+      <p><b>步骤1 - 解读提取：</b>粘贴文章全文和关键主题，工具生成提示词，您复制到AI对话框，AI返回的提取结果再粘贴回来。</p>
+      <p><b>步骤2 - VI套用：</b>配置公司视觉规范（颜色、字体、插画风格等），填写标题和内容，实时预览信息图布局。</p>
+      <p><b>步骤3 - 组装出图：</b>一键将VI规范+内容组装为完整的出图提示词，复制后粘贴到Nano Banana Pro。</p>
+      <p><b>步骤4 - 后处理：</b>上传生成的图片，添加Logo水印，下载成品。</p>
+      <h4>注意事项</h4>
+      <ul>
+        <li>Nano Banana Pro的"图像生成"模式不可叠加附件，请用纯文本提示词</li>
+        <li>提示词中的数据会100%输出，请仔细核对事实准确性</li>
+        <li>系列图片需指定与第一张图同样的风格以保持统一</li>
+        <li>中文标注建议后期叠加（多数模型中文渲染不稳定）</li>
+        <li>所有配置自动保存到浏览器本地存储</li>
+      </ul>
+      <h4>Changelog</h4>
+      <div class="changelog-item">
+        <span class="version">v0.1</span>
+        <span class="date">2026-05-14</span>
+        <p>初始版本：4步工作流（解读提取→VI套用→组装出图→后处理），公司VI模板配置，提示词组装，图片水印工具</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Config Modal -->
+<div class="help-modal-overlay" id="configModal">
+  <div class="help-modal">
+    <div class="help-modal-header">
+      <h3>⚙️ 配置管理</h3>
+      <button class="btn-icon" onclick="hideConfigModal()" style="background:var(--light);color:var(--dark);">✕</button>
+    </div>
+    <div class="help-modal-body">
+      <div class="btn-group" style="margin-bottom:16px;">
+        <button class="btn btn-outline" onclick="exportConfig()">📤 导出配置</button>
+        <button class="btn btn-outline" onclick="document.getElementById('importConfigFile').click()">📥 导入配置</button>
+        <input type="file" id="importConfigFile" accept=".json" style="display:none;" onchange="importConfig(event)">
+        <button class="btn btn-outline" style="color:#e53935;" onclick="resetConfig()">🗑️ 重置所有</button>
+      </div>
+      <p style="font-size:12px;color:var(--gray);">所有数据保存在浏览器localStorage中，清除浏览器数据会丢失配置。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ===== Version =====
+const APP_VERSION = 'v0.1';
+
+// ===== State Management =====
+let currentStep = 1;
+let currentProject = 'default';
+let projects = {};
+
+// ===== Init =====
+function init() {
+  document.getElementById('versionTag').textContent = APP_VERSION;
+  loadState();
+  renderProjectList();
+  loadProjectData();
+  setupDragDrop();
+  setupCharCount();
+}
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('bananaTool_projects');
+    if (saved) {
+      projects = JSON.parse(saved);
+    }
+    const savedProject = localStorage.getItem('bananaTool_currentProject');
+    if (savedProject && projects[savedProject]) {
+      currentProject = savedProject;
+    }
+    if (!projects[currentProject]) {
+      projects[currentProject] = createDefaultProject();
+    }
+  } catch (e) {
+    projects = { default: createDefaultProject() };
+  }
+}
+
+function createDefaultProject() {
+  return {
+    name: '默认项目',
+    article: '',
+    keyTopic: '',
+    extractModel: 'claude',
+    extractResult: '',
+    vi: {
+      accentColor: '#fc8166',
+      darkColor: '#312e2e',
+      bgColor: '#efefef',
+      font: '阿里巴巴普惠体',
+      author: '娱乐资本论',
+      illustStyle: '扁平化贴纸stickers',
+      title: '',
+      subtitle: '',
+      content: '',
+      layout: 'grid2',
+      conclusion: ''
+    },
+    footerLogoData: null,
+    watermarkLogoData: null,
+    created: Date.now()
+  };
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('bananaTool_projects', JSON.stringify(projects));
+    localStorage.setItem('bananaTool_currentProject', currentProject);
+  } catch (e) {
+    console.warn('Save failed:', e);
+  }
+}
+
+function loadProjectData() {
+  const p = projects[currentProject];
+  if (!p) return;
+
+  // Step 1
+  document.getElementById('articleInput').value = p.article || '';
+  document.getElementById('keyTopic').value = p.keyTopic || '';
+  document.getElementById('extractModel').value = p.extractModel || 'claude';
+  document.getElementById('extractResult').value = p.extractResult || '';
+  updateCharCount();
+
+  // Step 2
+  const vi = p.vi || {};
+  document.getElementById('viAccentColor').value = vi.accentColor || '#fc8166';
+  document.getElementById('viDarkColor').value = vi.darkColor || '#312e2e';
+  document.getElementById('viBgColor').value = vi.bgColor || '#efefef';
+  document.getElementById('viFont').value = vi.font || '阿里巴巴普惠体';
+  document.getElementById('viAuthor').value = vi.author || '娱乐资本论';
+  document.getElementById('viIllustStyle').value = vi.illustStyle || '扁平化贴纸stickers';
+  document.getElementById('viTitle').value = vi.title || '';
+  document.getElementById('viSubtitle').value = vi.subtitle || '';
+  document.getElementById('viContent').value = vi.content || '';
+  document.getElementById('viLayout').value = vi.layout || 'grid2';
+  document.getElementById('viConclusion').value = vi.conclusion || '';
+  updateVIHexLabels();
+}
+
+function saveProjectData() {
+  const p = projects[currentProject];
+  if (!p) return;
+
+  p.article = document.getElementById('articleInput').value;
+  p.keyTopic = document.getElementById('keyTopic').value;
+  p.extractModel = document.getElementById('extractModel').value;
+  p.extractResult = document.getElementById('extractResult').value;
+
+  p.vi = {
+    accentColor: document.getElementById('viAccentColor').value,
+    darkColor: document.getElementById('viDarkColor').value,
+    bgColor: document.getElementById('viBgColor').value,
+    font: document.getElementById('viFont').value,
+    author: document.getElementById('viAuthor').value,
+    illustStyle: document.getElementById('viIllustStyle').value,
+    title: document.getElementById('viTitle').value,
+    subtitle: document.getElementById('viSubtitle').value,
+    content: document.getElementById('viContent').value,
+    layout: document.getElementById('viLayout').value,
+    conclusion: document.getElementById('viConclusion').value
+  };
+
+  saveState();
+}
+
+// Auto-save on input changes
+document.addEventListener('input', function(e) {
+  if (e.target.closest('.workspace-body') || e.target.closest('.vi-sidebar')) {
+    clearTimeout(window._saveTimer);
+    window._saveTimer = setTimeout(saveProjectData, 500);
+  }
+});
+
+document.addEventListener('change', function(e) {
+  if (e.target.closest('.workspace-body') || e.target.closest('.vi-sidebar')) {
+    saveProjectData();
+  }
+});
+
+// ===== Project Management =====
+function renderProjectList() {
+  const container = document.getElementById('projectList');
+  container.innerHTML = '';
+  Object.keys(projects).forEach(key => {
+    const chip = document.createElement('span');
+    chip.className = 'project-chip' + (key === currentProject ? ' active' : '');
+    chip.innerHTML = projects[key].name + (key !== 'default' ? ' <span class="chip-close" onclick="event.stopPropagation();deleteProject(\'' + key + '\')">×</span>' : '');
+    chip.onclick = () => switchProject(key);
+    container.appendChild(chip);
+  });
+}
+
+function newProject() {
+  const name = prompt('项目名称：', '新项目 ' + (Object.keys(projects).length + 1));
+  if (!name) return;
+  const key = 'proj_' + Date.now();
+  projects[key] = createDefaultProject();
+  projects[key].name = name;
+  currentProject = key;
+  saveState();
+  renderProjectList();
+  loadProjectData();
+  showToast('已创建项目: ' + name, 'success');
+}
+
+function switchProject(key) {
+  if (key === currentProject) return;
+  saveProjectData();
+  currentProject = key;
+  localStorage.setItem('bananaTool_currentProject', currentProject);
+  renderProjectList();
+  loadProjectData();
+  showToast('已切换到: ' + projects[key].name, 'info');
+}
+
+function deleteProject(key) {
+  if (key === 'default') return;
+  if (!confirm('确认删除项目 "' + projects[key].name + '"？')) return;
+  delete projects[key];
+  if (currentProject === key) {
+    currentProject = 'default';
+  }
+  saveState();
+  renderProjectList();
+  loadProjectData();
+  showToast('项目已删除', 'info');
+}
+
+// ===== Step Navigation =====
+function goStep(step) {
+  saveProjectData();
+  currentStep = step;
+
+  // Update pipeline
+  document.querySelectorAll('.pipeline-step').forEach(el => {
+    const s = parseInt(el.dataset.step);
+    el.classList.remove('active', 'done');
+    if (s === step) el.classList.add('active');
+    else if (s < step) el.classList.add('done');
+  });
+
+  // Show/hide workspaces
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('step' + i + 'Workspace').style.display = (i === step) ? '' : 'none';
+  }
+
+  // Step 2: auto-fill content from step 1
+  if (step === 2) {
+    const extractResult = document.getElementById('extractResult').value;
+    if (extractResult && !document.getElementById('viContent').value) {
+      document.getElementById('viContent').value = extractResult;
+      saveProjectData();
+    }
+    updateVI();
+    updatePreview();
+  }
+
+  // Step 3: assemble prompt
+  if (step === 3) {
+    assemblePrompt();
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== Step 1: Generate Extract Prompt =====
+function generateExtractPrompt() {
+  const article = document.getElementById('articleInput').value.trim();
+  const topic = document.getElementById('keyTopic').value.trim();
+  const model = document.getElementById('extractModel').value;
+
+  if (!article) {
+    showToast('请先粘贴文章全文', 'warning');
+    return;
+  }
+  if (!topic) {
+    showToast('请输入关键主题', 'warning');
+    return;
+  }
+
+  const prompt = `阅读这篇文章。提取出其中【${topic}】部分，并将其改编为一个适合nano banana pro/seedream4.5等大模型直出图像使用的prompt文本。
+
+首先您需要确保其中时间线、数据、人名等绝对准确，其次需要一个较为有创意的infographic展现形态，用文字描述你的想法。
+
+注意：
+1. 请先输出"## 提取的时间线数据"，以结构化方式列出关键信息
+2. 然后输出"## Infographic创意方案"，描述你设计的信息图视觉概念
+3. 最后输出"## 适配AI直出的Prompt文本"，给出英文prompt
+
+---
+
+文章内容：
+${article}`;
+
+  document.getElementById('extractPromptPreview').textContent = prompt;
+  document.getElementById('step1Dot').className = 'status-dot done';
+  document.getElementById('step1Status').textContent = '已完成';
+  showToast('提示词已生成，请复制到AI对话框使用', 'success');
+  saveProjectData();
+}
+
+function copyExtractPrompt() {
+  const preview = document.getElementById('extractPromptPreview');
+  const text = preview.textContent;
+  if (!text || text.includes('← 在左侧输入')) {
+    showToast('请先生成提示词', 'warning');
+    return;
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('已复制到剪贴板', 'success');
+  }).catch(() => {
+    fallbackCopy(text);
+  });
+}
+
+// ===== Step 2: VI Template =====
+function updateVI() {
+  updateVIHexLabels();
+  updatePreview();
+  saveProjectData();
+}
+
+function updateVIHexLabels() {
+  document.getElementById('viAccentHex').textContent = document.getElementById('viAccentColor').value;
+  document.getElementById('viDarkHex').textContent = document.getElementById('viDarkColor').value;
+  document.getElementById('viBgHex').textContent = document.getElementById('viBgColor').value;
+}
+
+function updatePreview() {
+  const title = document.getElementById('viTitle').value || '标题区域';
+  const subtitle = document.getElementById('viSubtitle').value || '副标题区域';
+  const content = document.getElementById('viContent').value;
+  const author = document.getElementById('viAuthor').value || '娱乐资本论';
+  const accentColor = document.getElementById('viAccentColor').value;
+  const darkColor = document.getElementById('viDarkColor').value;
+  const bgColor = document.getElementById('viBgColor').value;
+  const conclusion = document.getElementById('viConclusion').value;
+
+  // Update preview title with highlight
+  const titleEl = document.getElementById('previewTitle');
+  titleEl.innerHTML = title.replace(/【(.+?)】/g, '<span class="hl" style="color:' + accentColor + ';">$1</span>');
+
+  document.getElementById('previewSubtitle').textContent = subtitle;
+  document.getElementById('previewFooter').textContent = '作者：' + author;
+
+  // Update preview colors
+  const previewEl = document.getElementById('infographicPreview');
+  previewEl.querySelector('.preview-header-bar').style.background = darkColor;
+  previewEl.querySelector('.preview-footer-bar').style.background = darkColor;
+  previewEl.querySelector('.preview-content').style.background = bgColor;
+
+  // Update preview sections from content
+  const contentEl = document.getElementById('previewContent');
+  if (!content) {
+    contentEl.innerHTML = '<div style="text-align:center;color:var(--gray);padding:40px;">请在"编辑内容"中填写信息</div>';
+    return;
+  }
+
+  // Parse content into sections (by ## or ** headers)
+  const sections = content.split(/\n(?=#{1,3}\s|第[一二三四五六七八九十]+[部分章节])/);
+  let html = '';
+  if (sections.length > 1) {
+    sections.forEach(sec => {
+      if (!sec.trim()) return;
+      const lines = sec.trim().split('\n');
+      const secTitle = lines[0].replace(/^#+\s*/, '').replace(/\*\*/g, '');
+      const secBody = lines.slice(1).join('\n').trim();
+      const keywords = secBody.match(/(?:关键词|关键字|提示)[：:]\s*(.+)/i);
+      const kwHtml = keywords
+        ? keywords[1].split(/[\/、,，]/).map(k => `<span class="keyword-tag" style="background:rgba(252,129,102,0.12);color:${accentColor};">${k.trim()}</span>`).join('')
+        : '';
+
+      html += `<div class="preview-section" style="border-left-color:${accentColor};">
+        <div class="section-title">${secTitle}</div>
+        ${kwHtml ? '<div class="section-keywords">' + kwHtml + '</div>' : ''}
+        <div class="section-points">${secBody.replace(/[-•]\s/g, '<br>• ').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')}</div>
+      </div>`;
+    });
+  } else {
+    html = `<div class="preview-section" style="border-left-color:${accentColor};">
+      <div class="section-points" style="white-space:pre-wrap;">${content}</div>
+    </div>`;
+  }
+
+  if (conclusion) {
+    html += `<div style="background:${accentColor}15;border:1px solid ${accentColor}40;border-radius:var(--radius-sm);padding:12px;margin-top:12px;font-size:13px;">
+      <b style="color:${accentColor};">💡 结论：</b>${conclusion}
+    </div>`;
+  }
+
+  contentEl.innerHTML = html;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+  if (tab === 'edit') {
+    document.querySelector('.tab-btn:first-child').classList.add('active');
+    document.getElementById('tabEdit').classList.add('active');
+  } else {
+    document.querySelector('.tab-btn:last-child').classList.add('active');
+    document.getElementById('tabPreview').classList.add('active');
+    updatePreview();
+  }
+}
+
+// ===== Step 3: Assemble Prompt =====
+function assemblePrompt() {
+  saveProjectData();
+  const p = projects[currentProject];
+  if (!p) return;
+
+  const vi = p.vi;
+  const content = vi.content || p.extractResult || '';
+
+  if (!vi.title && !content) {
+    document.getElementById('assembledPrompt').innerHTML = '<span style="color:var(--gray);">请先完成步骤1和步骤2</span>';
+    return;
+  }
+
+  // Build the full prompt following the template structure
+  let prompt = `按下列描述使用nano banana绘制一张长的信息图
+---
+总体设计指令：
+设计一张垂直长图，采用极简风格，视觉对比强烈，逻辑清晰，展示【${vi.title || '主题'}】主题。请给每个视觉节点配上容易理解的插画，以体现文字描述的意思。风格为现代商业科技感，插画风格类似${vi.illustStyle}，高可读性。整幅画面给人一种印刷于高品质铜版纸上的质感。背景线条需简洁，不干扰文字阅读。
+
+部分视觉要求：
+字体采用"${vi.font}"或者相近的无衬线体，字重：标题Heavy 正文Regular
+标识色：橘红色${vi.accentColor} 黑色${vi.darkColor}
+条形/柱状/环形数据图 都以橘红色为主
+背景色：浅白色${vi.bgColor}
+
+头部标题区域
+视觉要求：通栏深色横幅，宽度为100%，背景色为"${vi.darkColor}"，字体颜色为"浅白色${vi.bgColor}"，强调字体色为"橘红色${vi.accentColor}"，字体为"${vi.font}Heavy"无衬线粗体。
+• 标题（左对齐）：${vi.title || '【标题】'}
+${vi.title && vi.title.includes('【') ? '- 其中【】内为强调字体色。' : ''}
+• 副标题（左对齐）：${vi.subtitle || '【副标题】'}
+
+以下全部正文字体均为"${vi.font}Regular"无衬线标准体。`;
+
+  // Add content sections
+  if (content) {
+    // Parse sections
+    const sections = content.split(/\n(?=#{1,3}\s|第[一二三四五六七八九十]+[部分章节])/);
+    if (sections.length > 1) {
+      prompt += '\n\n【信息图布局及内容描述】\n\n';
+      let layoutDesc = '';
+      const layout = vi.layout;
+      if (layout === 'grid2') {
+        layoutDesc = '一共' + (sections.length - 1) + '个部分，按照1、2；3、4的顺序，每行两部分。\n排版流向：确保用户视线从左到右、从上到下流畅阅读。\n每个部分包裹在一个圆角矩形框内';
+      } else if (layout === 'vertical') {
+        layoutDesc = '一共' + (sections.length - 1) + '个部分，从上到下依次排列。\n排版流向：确保用户视线从上到下流畅阅读。';
+      } else if (layout === 'grid3') {
+        layoutDesc = '一共' + (sections.length - 1) + '个部分，按照1、2、3；4、5、6的顺序，每行三个部分。\n排版流向：确保用户视线从左到右、从上到下流畅阅读。';
+      } else if (layout === 'timeline') {
+        layoutDesc = '以时间线形式从上到下展示，每个时间节点用圆点或图标标记，节点之间用竖线连接。';
+      }
+      prompt += layoutDesc + '\n\n';
+
+      sections.forEach((sec, idx) => {
+        if (!sec.trim()) return;
+        const lines = sec.trim().split('\n');
+        const secTitle = lines[0].replace(/^#+\s*/, '').replace(/\*\*/g, '');
+        const secBody = lines.slice(1).join('\n').trim();
+        prompt += `### ${secTitle}\n${secBody}\n\n`;
+      });
+    } else {
+      prompt += '\n\n【信息图布局及内容描述】\n\n' + content;
+    }
+  }
+
+  // Conclusion
+  if (vi.conclusion) {
+    prompt += `---\n\n6个圆角矩形区域下方为结论区，以一个对话气泡涵盖下列文字：\n"${vi.conclusion}"\n\n`;
+  }
+
+  // Footer
+  prompt += `---\n\n底部页脚\n通栏深色横幅，宽度为100%，背景色为"${vi.darkColor}"，字体颜色为"浅白色${vi.bgColor}"，居中标注"作者：${vi.author}"`;
+
+  // Display with syntax highlighting
+  const highlighted = prompt
+    .replace(/^---$/gm, '<span style="color:#569cd6;">---</span>')
+    .replace(/^(#{1,3}\s.+)$/gm, '<span style="color:#4ec9b0;">$1</span>')
+    .replace(/^（(.+?)）$/gm, '<span style="color:#ce9178;">（$1）</span>')
+    .replace(/【(.+?)】/g, '<span style="color:#fc8166;">【$1】</span>');
+
+  document.getElementById('assembledPrompt').innerHTML = highlighted;
+  document.getElementById('step3Dot').className = 'status-dot done';
+  document.getElementById('step3Status').textContent = '已完成';
+
+  // Store the raw prompt for copying
+  window._assembledPromptRaw = prompt;
+}
+
+function copyAssembledPrompt() {
+  const raw = window._assembledPromptRaw;
+  if (!raw) {
+    showToast('请先组装提示词', 'warning');
+    return;
+  }
+  navigator.clipboard.writeText(raw).then(() => {
+    showToast('已复制完整提示词到剪贴板！', 'success');
+  }).catch(() => {
+    fallbackCopy(raw);
+  });
+}
+
+function downloadPrompt() {
+  const raw = window._assembledPromptRaw;
+  if (!raw) {
+    showToast('请先组装提示词', 'warning');
+    return;
+  }
+  const blob = new Blob([raw], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'banana-prompt-' + new Date().toISOString().slice(0, 10) + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('提示词已下载', 'success');
+}
+
+// ===== Step 4: Watermark =====
+let uploadedImageData = null;
+let footerLogoData = null;
+let watermarkLogoData = null;
+
+function setupDragDrop() {
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--primary)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.style.borderColor = '';
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      processImageFile(file);
+    }
+  });
+}
+
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (file) processImageFile(file);
+}
+
+function processImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    uploadedImageData = e.target.result;
+    document.getElementById('uploadedImage').src = uploadedImageData;
+    document.getElementById('imagePreviewArea').style.display = '';
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('step4Dot').className = 'status-dot done';
+    document.getElementById('step4Status').textContent = '图片已上传';
+    showToast('图片已上传', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleLogoUpload(event, type) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = e.target.result;
+    if (type === 'footer') {
+      footerLogoData = data;
+      document.getElementById('logoPreview1').innerHTML = '<img src="' + data + '">';
+    } else {
+      watermarkLogoData = data;
+      document.getElementById('logoPreview2').innerHTML = '<img src="' + data + '">';
+    }
+    showToast('Logo已上传', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function applyWatermark() {
+  if (!uploadedImageData) {
+    showToast('请先上传图片', 'warning');
+    return;
+  }
+
+  const canvas = document.getElementById('watermarkCanvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = function() {
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    const opacity = parseInt(document.getElementById('watermarkOpacity').value) / 100;
+    const mode = document.getElementById('watermarkMode').value;
+
+    // Add footer logo
+    if (footerLogoData) {
+      const logoImg = new Image();
+      logoImg.onload = function() {
+        // Place at bottom center
+        const logoW = Math.min(200, img.width * 0.3);
+        const logoH = logoW * (logoImg.height / logoImg.width);
+        const logoX = (img.width - logoW) / 2;
+        const logoY = img.height - logoH - 20;
+        ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+        applyWatermarkOverlay(ctx, img.width, img.height, opacity, mode);
+      };
+      logoImg.src = footerLogoData;
+    } else {
+      applyWatermarkOverlay(ctx, img.width, img.height, opacity, mode);
+    }
+  };
+  img.src = uploadedImageData;
+}
+
+function applyWatermarkOverlay(ctx, w, h, opacity, mode) {
+  if (!watermarkLogoData) {
+    showResult(canvas);
+    return;
+  }
+
+  const wmImg = new Image();
+  wmImg.onload = function() {
+    ctx.globalAlpha = opacity;
+
+    if (mode === 'center') {
+      // One large watermark in center
+      const wmW = Math.min(w * 0.4, 400);
+      const wmH = wmW * (wmImg.height / wmImg.width);
+      ctx.drawImage(wmImg, (w - wmW) / 2, (h - wmH) / 2, wmW, wmH);
+    } else if (mode === 'tile') {
+      // Tile watermarks
+      const wmW = Math.min(w * 0.15, 150);
+      const wmH = wmW * (wmImg.height / wmImg.width);
+      const gap = wmW * 1.5;
+      for (let y = -wmH; y < h + wmH; y += gap) {
+        for (let x = -wmW; x < w + wmW; x += gap) {
+          ctx.save();
+          ctx.translate(x + wmW / 2, y + wmH / 2);
+          ctx.rotate(-Math.PI / 6);
+          ctx.drawImage(wmImg, -wmW / 2, -wmH / 2, wmW, wmH);
+          ctx.restore();
+        }
+      }
+    } else if (mode === 'corners') {
+      const wmW = Math.min(w * 0.15, 150);
+      const wmH = wmW * (wmImg.height / wmImg.width);
+      const margin = 30;
+      // Top-left
+      ctx.drawImage(wmImg, margin, margin, wmW, wmH);
+      // Top-right
+      ctx.drawImage(wmImg, w - wmW - margin, margin, wmW, wmH);
+      // Bottom-left
+      ctx.drawImage(wmImg, margin, h - wmH - margin, wmW, wmH);
+      // Bottom-right
+      ctx.drawImage(wmImg, w - wmW - margin, h - wmH - margin, wmW, wmH);
+    }
+
+    ctx.globalAlpha = 1;
+    showResult(canvas);
+  };
+  wmImg.src = watermarkLogoData;
+}
+
+function showResult(canvas) {
+  const dataURL = canvas.toDataURL('image/png');
+  document.getElementById('resultImage').src = dataURL;
+  document.getElementById('resultArea').style.display = '';
+  showToast('水印已应用', 'success');
+}
+
+function downloadResult(format) {
+  const canvas = document.getElementById('watermarkCanvas');
+  if (!canvas.width) {
+    showToast('请先应用水印', 'warning');
+    return;
+  }
+  const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const ext = format === 'jpeg' ? 'jpg' : 'png';
+  const dataURL = canvas.toDataURL(mimeType, 0.95);
+  const a = document.createElement('a');
+  a.href = dataURL;
+  a.download = 'banana-result-' + new Date().toISOString().slice(0, 10) + '.' + ext;
+  a.click();
+  showToast('图片已下载', 'success');
+}
+
+// ===== Utility Functions =====
+function setupCharCount() {
+  const textarea = document.getElementById('articleInput');
+  textarea.addEventListener('input', updateCharCount);
+}
+
+function updateCharCount() {
+  const len = document.getElementById('articleInput').value.length;
+  document.getElementById('articleCharCount').textContent = len + ' 字';
+}
+
+function showToast(msg, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + (type || 'info');
+  const icons = { success: '✅', info: 'ℹ️', warning: '⚠️' };
+  toast.innerHTML = (icons[type] || '') + ' ' + msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(20px)';
+    toast.style.transition = 'all 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+function fallbackCopy(text) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
+    showToast('已复制到剪贴板', 'success');
+  } catch (e) {
+    showToast('复制失败，请手动复制', 'warning');
+  }
+  document.body.removeChild(textarea);
+}
+
+function toggleHelp() {
+  const modal = document.getElementById('helpModal');
+  modal.classList.toggle('show');
+}
+
+function showConfigModal() {
+  document.getElementById('configModal').classList.add('show');
+}
+
+function hideConfigModal() {
+  document.getElementById('configModal').classList.remove('show');
+}
+
+function exportConfig() {
+  saveProjectData();
+  const data = JSON.stringify(projects, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'banana-tool-config-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('配置已导出', 'success');
+}
+
+function importConfig(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      projects = data;
+      saveState();
+      renderProjectList();
+      loadProjectData();
+      showToast('配置已导入', 'success');
+      hideConfigModal();
+    } catch (err) {
+      showToast('导入失败：无效的配置文件', 'warning');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function resetConfig() {
+  if (!confirm('确认重置所有配置？此操作不可撤销。')) return;
+  localStorage.removeItem('bananaTool_projects');
+  localStorage.removeItem('bananaTool_currentProject');
+  projects = { default: createDefaultProject() };
+  currentProject = 'default';
+  renderProjectList();
+  loadProjectData();
+  showToast('已重置', 'info');
+  hideConfigModal();
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.help-modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) {
+      this.classList.remove('show');
+    }
+  });
+});
+
+// ===== Init =====
+init();
+</script>
+</body>
+</html>
