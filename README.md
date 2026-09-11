@@ -40,7 +40,7 @@ Banana Tool 是为内容团队设计的 **AI 信息图提示词组装工具**。
 
 ### 部署方式
 - **本机浏览器直接打开**：双击 `index.html`
-- **GitHub Pages**：推送到仓库后启用 Pages，访问 `https://<user>.github.io/banana-tool/`
+- **GitHub Pages**：已启用 Pages，访问 https://ylzbl.github.io/banana-tool/
 - **Cloudflare Workers**：将 `index.html` 作为响应体返回（适合自定义域名 + CDN 加速）
 
 ### 配置管理
